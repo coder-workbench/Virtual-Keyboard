@@ -9,7 +9,7 @@ cap = cv2.VideoCapture(0)
 cap.set(3, 1280)
 cap.set(4, 720)
 
-detector = HandDetector(detectionCon=0.8)
+detector = HandDetector(detectionCon=1) # made it an integer, it was float earlier (0.8)
 keys = [["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
         ["A", "S", "D", "F", "G", "H", "J", "K", "L", ";"],
         ["Z", "X", "C", "V", "B", "N", "M", ",", ".", "/"]]
@@ -19,38 +19,24 @@ keyboard = Controller()
 
 
 def drawAll(img, buttonList):
+    overlay = img.copy()
+    alpha = 0.2  # Transparency factor
+
     for button in buttonList:
         x, y = button.pos
         w, h = button.size
-        cvzone.cornerRect(img, (button.pos[0], button.pos[1], button.size[0], button.size[1]),
+        cvzone.cornerRect(overlay, (button.pos[0], button.pos[1], button.size[0], button.size[1]),
                           20, rt=0)
-        cv2.rectangle(img, button.pos, (x + w, y + h), (255, 0, 255), cv2.FILLED)
-        cv2.putText(img, button.text, (x + 20, y + 65),
+        cv2.rectangle(overlay, button.pos, (x + w, y + h), (255, 0, 255), cv2.FILLED)
+        cv2.putText(overlay, button.text, (x + 20, y + 65),
                     cv2.FONT_HERSHEY_PLAIN, 4, (255, 255, 255), 4)
+
+    # Blend the overlay with the original image
+    cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0, img)
     return img
 
 
-#
-# def drawAll(img, buttonList):
-#     imgNew = np.zeros_like(img, np.uint8)
-#     for button in buttonList:
-#         x, y = button.pos
-#         cvzone.cornerRect(imgNew, (button.pos[0], button.pos[1], button.size[0], button.size[1]),
-#                           20, rt=0)
-#         cv2.rectangle(imgNew, button.pos, (x + button.size[0], y + button.size[1]),
-#                       (255, 0, 255), cv2.FILLED)
-#         cv2.putText(imgNew, button.text, (x + 40, y + 60),
-#                     cv2.FONT_HERSHEY_PLAIN, 2, (255, 255, 255), 3)
-#
-#     out = img.copy()
-#     alpha = 0.5
-#     mask = imgNew.astype(bool)
-#     print(mask.shape)
-#     out[mask] = cv2.addWeighted(img, alpha, imgNew, 1 - alpha, 0)[mask]
-#     return out
-
-
-class Button():
+class Button:
     def __init__(self, pos, text, size=[85, 85]):
         self.pos = pos
         self.size = size
@@ -64,6 +50,7 @@ for i in range(len(keys)):
 
 while True:
     success, img = cap.read()
+    img = cv2.flip(img, 1) # Flipping Image so that it gets easier to recognize left and right hands
     img = detector.findHands(img)
     lmList, bboxInfo = detector.findPosition(img)
     img = drawAll(img, buttonList)
@@ -74,7 +61,9 @@ while True:
             w, h = button.size
 
             if x < lmList[8][0] < x + w and y < lmList[8][1] < y + h:
-                cv2.rectangle(img, (x - 5, y - 5), (x + w + 5, y + h + 5), (175, 0, 175), cv2.FILLED)
+                overlay = img.copy()
+                cv2.rectangle(overlay, (x - 5, y - 5), (x + w + 5, y + h + 5), (175, 0, 175), cv2.FILLED)
+                cv2.addWeighted(overlay, 0.5, img, 0.5, 0, img)
                 cv2.putText(img, button.text, (x + 20, y + 65),
                             cv2.FONT_HERSHEY_PLAIN, 4, (255, 255, 255), 4)
                 l, _, _ = detector.findDistance(8, 12, img, draw=False)
